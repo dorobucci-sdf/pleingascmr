@@ -22,7 +22,7 @@ import { User, UserRole, SalesPoint, Brand } from '../../types';
 interface ActorSimulatorModalProps {
   isOpen: boolean;
   onClose: () => void;
-  currentUser: User;
+  currentUser: User | null;
   allUsers: User[];
   salesPoints: SalesPoint[];
   brands: Brand[];
@@ -178,7 +178,7 @@ export const ActorSimulatorModal: React.FC<ActorSimulatorModalProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState<string>('');
 
-  if (!isOpen) return null;
+  if (!isOpen || !currentUser) return null;
 
   // STRICT ISOLATION: Only the current actor's category is visible
   const currentCategory = ACTOR_CATEGORIES.find((cat) => cat.role === currentUser.role) || ACTOR_CATEGORIES[0];

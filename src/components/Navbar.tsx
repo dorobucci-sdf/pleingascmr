@@ -20,24 +20,27 @@ import {
   Sparkles,
   UserPlus,
   LogIn,
+  LogOut,
   Sliders,
   DollarSign,
   TrendingUp,
   AlertCircle,
+  Home,
 } from 'lucide-react';
 import { User, UserRole, Coordinates } from '../types';
 import { CITY_PRESETS } from '../services/geo';
 
 interface NavbarProps {
-  currentUser: User;
-  allUsers: User[];
-  onSelectUser: (user: User) => void;
-  cartCount: number;
-  onOpenCart: () => void;
-  activeView: string;
-  onNavigate: (view: string) => void;
-  onOpenAuthModal?: () => void;
-  onOpenSimulatorModal: () => void;
+  currentUser: User | null;
+  allUsers?: User[];
+  onSelectUser?: (user: User) => void;
+  cartCount?: number;
+  onOpenCart?: () => void;
+  activeView?: string;
+  onNavigate?: (view: string) => void;
+  onOpenAuthModal?: (mode?: 'LOGIN' | 'REGISTER' | 'PRESETS', role?: UserRole) => void;
+  onOpenSimulatorModal?: () => void;
+  onLogout?: () => void;
   userLocation?: Coordinates;
   onSelectCity?: (city: { name: string; coordinates: Coordinates }) => void;
   onRequestGPS?: () => void;
@@ -48,12 +51,13 @@ export const Navbar: React.FC<NavbarProps> = ({
   currentUser,
   allUsers = [],
   onSelectUser,
-  cartCount,
+  cartCount = 0,
   onOpenCart,
   activeView,
   onNavigate,
   onOpenAuthModal,
   onOpenSimulatorModal,
+  onLogout,
   userLocation,
   onSelectCity,
   onRequestGPS,
@@ -63,7 +67,18 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [showLocationMenu, setShowLocationMenu] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const getRoleBadge = (role: UserRole) => {
+  const getRoleBadge = (role?: UserRole) => {
+    if (!role) {
+      return {
+        label: 'Visiteur',
+        sectionTitle: 'Accueil Visiteur',
+        description: 'Découverte des services pleinGas',
+        icon: UserIcon,
+        bg: 'bg-slate-100 text-slate-800 border-slate-200',
+        accent: 'bg-slate-700',
+        headerBg: 'bg-slate-50 text-slate-900 border-slate-200',
+      };
+    }
     switch (role) {
       case 'admin':
         return {
@@ -77,7 +92,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         };
       case 'vendor':
         return {
-          label: 'Point de Vente',
+          label: 'Distributeur',
           sectionTitle: '🏪 Gérants de Points de Vente & Dépôts',
           description: 'Gestion des stocks, prix et commandes',
           icon: Store,
@@ -118,11 +133,11 @@ export const Navbar: React.FC<NavbarProps> = ({
     }
   };
 
-  const currentRoleBadge = getRoleBadge(currentUser.role);
+  const currentRoleBadge = getRoleBadge(currentUser?.role);
   const RoleIcon = currentRoleBadge.icon;
 
   const handleRoleSelect = (u: User) => {
-    onSelectUser(u);
+    if (onSelectUser) onSelectUser(u);
     setShowRoleMenu(false);
     setMobileMenuOpen(false);
   };
@@ -185,11 +200,19 @@ export const Navbar: React.FC<NavbarProps> = ({
             <div className="flex items-center gap-3 sm:gap-6">
               <button
                 onClick={() => {
-                  if (currentUser.role === 'client') onNavigate('map');
-                  else if (currentUser.role === 'vendor') onNavigate('vendor_dashboard');
-                  else if (currentUser.role === 'driver') onNavigate('driver_dashboard');
-                  else if (currentUser.role === 'admin') onNavigate('admin_dashboard');
-                  else if (currentUser.role === 'brand') onNavigate('brand_dashboard');
+                  if (!currentUser && onNavigate) {
+                    onNavigate('landing');
+                  } else if (currentUser?.role === 'client' && onNavigate) {
+                    onNavigate('map');
+                  } else if (currentUser?.role === 'vendor' && onNavigate) {
+                    onNavigate('vendor_dashboard');
+                  } else if (currentUser?.role === 'driver' && onNavigate) {
+                    onNavigate('driver_dashboard');
+                  } else if (currentUser?.role === 'admin' && onNavigate) {
+                    onNavigate('admin_dashboard');
+                  } else if (currentUser?.role === 'brand' && onNavigate) {
+                    onNavigate('brand_dashboard');
+                  }
                 }}
                 className="flex items-center gap-2.5 text-left group focus:outline-hidden"
                 id="brand-logo-btn"
@@ -202,13 +225,13 @@ export const Navbar: React.FC<NavbarProps> = ({
                     plein<span className="text-orange-600">Gas</span>
                   </span>
                   <span className="block text-[9px] sm:text-[10px] font-bold text-slate-400 -mt-1 uppercase tracking-wider">
-                    Gaz & Livraison Géoloc
+                    Gaz & Dépôts Agréés
                   </span>
                 </div>
               </button>
 
               {/* City & Geolocation Picker Dropdown (Only for Clients) */}
-              {currentUser.role === 'client' && (
+              {currentUser?.role === 'client' && (
                 <div className="relative hidden md:block">
                   <button
                     onClick={() => setShowLocationMenu(!showLocationMenu)}
@@ -248,7 +271,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
                       <div className="p-1.5 space-y-0.5">
                         <span className="text-[10px] font-bold text-slate-400 px-2.5 py-1 block uppercase tracking-wider">
-                          Villes & Dépôts
+                          Villes principales
                         </span>
                         {CITY_PRESETS.map((city) => (
                           <button
@@ -257,13 +280,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                               if (onSelectCity) onSelectCity(city);
                               setShowLocationMenu(false);
                             }}
-                            className="w-full px-3 py-2 text-left text-xs font-semibold text-slate-700 hover:bg-slate-100 rounded-xl flex items-center justify-between transition-colors"
+                            className="w-full px-2.5 py-1.5 text-left text-xs rounded-xl hover:bg-slate-100 flex items-center justify-between transition-colors font-medium text-slate-700"
                           >
-                            <span className="flex items-center gap-2">
-                              <MapPin className="w-3.5 h-3.5 text-slate-400" />
-                              {city.name}
-                            </span>
-                            <span className="text-[10px] text-slate-400 font-medium">{city.country}</span>
+                            <span>{city.name}</span>
+                            <span className="text-[10px] text-slate-400">{city.country}</span>
                           </button>
                         ))}
                       </div>
@@ -273,30 +293,42 @@ export const Navbar: React.FC<NavbarProps> = ({
               )}
             </div>
 
-            {/* Desktop Role-Specific Navigation Links (STRICT ISOLATION) */}
+            {/* Desktop Center Navigation */}
             <nav className="hidden lg:flex items-center gap-1.5">
+              {/* If Visitor (Not Logged In) */}
+              {!currentUser && (
+                <>
+                  <div className="flex items-center gap-2 text-xs font-bold text-slate-600 mr-2">
+                    <span className="px-3 py-1.5 rounded-xl bg-orange-50 text-orange-700 border border-orange-100 flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-orange-500" />
+                      Services de Gaz Domestique & Livraison Express
+                    </span>
+                  </div>
+                </>
+              )}
+
               {/* 1. Client Navigation Links */}
-              {currentUser.role === 'client' && (
+              {currentUser?.role === 'client' && (
                 <>
                   <button
-                    onClick={() => onNavigate('map')}
+                    onClick={() => onNavigate && onNavigate('map')}
                     className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
                       activeView === 'map'
                         ? 'bg-slate-900 text-white shadow-xs'
-                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                        : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
                     }`}
                     id="nav-map-tab"
                   >
-                    <Search className="w-3.5 h-3.5 text-orange-500" />
-                    <span>Carte & Dépôts de Gaz</span>
+                    <Search className="w-3.5 h-3.5" />
+                    <span>Dépôts & Bouteilles</span>
                   </button>
 
                   <button
-                    onClick={() => onNavigate('client_dashboard')}
+                    onClick={() => onNavigate && onNavigate('client_dashboard')}
                     className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
                       activeView === 'client_dashboard'
                         ? 'bg-slate-900 text-white shadow-xs'
-                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                        : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
                     }`}
                     id="nav-orders-tab"
                   >
@@ -307,10 +339,10 @@ export const Navbar: React.FC<NavbarProps> = ({
               )}
 
               {/* 2. Vendor Navigation Links */}
-              {currentUser.role === 'vendor' && (
+              {currentUser?.role === 'vendor' && (
                 <>
                   <button
-                    onClick={() => onNavigate('vendor_dashboard')}
+                    onClick={() => onNavigate && onNavigate('vendor_dashboard')}
                     className="px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 bg-blue-600 text-white shadow-xs"
                   >
                     <Store className="w-3.5 h-3.5" />
@@ -320,10 +352,10 @@ export const Navbar: React.FC<NavbarProps> = ({
               )}
 
               {/* 3. Driver Navigation Links */}
-              {currentUser.role === 'driver' && (
+              {currentUser?.role === 'driver' && (
                 <>
                   <button
-                    onClick={() => onNavigate('driver_dashboard')}
+                    onClick={() => onNavigate && onNavigate('driver_dashboard')}
                     className="px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 bg-emerald-600 text-white shadow-xs"
                   >
                     <Bike className="w-3.5 h-3.5" />
@@ -333,10 +365,10 @@ export const Navbar: React.FC<NavbarProps> = ({
               )}
 
               {/* 4. Brand Navigation Links */}
-              {currentUser.role === 'brand' && (
+              {currentUser?.role === 'brand' && (
                 <>
                   <button
-                    onClick={() => onNavigate('brand_dashboard')}
+                    onClick={() => onNavigate && onNavigate('brand_dashboard')}
                     className="px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 bg-amber-600 text-white shadow-xs"
                   >
                     <Building2 className="w-3.5 h-3.5" />
@@ -346,10 +378,10 @@ export const Navbar: React.FC<NavbarProps> = ({
               )}
 
               {/* 5. Super Admin Navigation Links */}
-              {currentUser.role === 'admin' && (
+              {currentUser?.role === 'admin' && (
                 <>
                   <button
-                    onClick={() => onNavigate('admin_dashboard')}
+                    onClick={() => onNavigate && onNavigate('admin_dashboard')}
                     className="px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 bg-purple-600 text-white shadow-xs"
                   >
                     <Shield className="w-3.5 h-3.5" />
@@ -358,168 +390,207 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </>
               )}
 
-            {/* Simulator Hub Button */}
-              <button
-                onClick={onOpenSimulatorModal}
-                className="px-3 py-2 rounded-xl text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 transition-all flex items-center gap-1.5 shadow-2xs"
-                id="nav-simulator-hub-btn"
-                title={`Visualiser l'espace ${currentRoleBadge.label}`}
-              >
-                <Layers className="w-3.5 h-3.5 text-orange-600" />
-                <span>Espace {currentRoleBadge.label}</span>
-              </button>
-
-              {/* Inscription / Connexion Button */}
-              {onOpenAuthModal && (
+              {/* Simulator Hub Button (for connected actors) */}
+              {currentUser && onOpenSimulatorModal && (
                 <button
-                  onClick={onOpenAuthModal}
-                  className="px-3 py-2 rounded-xl text-xs font-bold text-orange-700 bg-orange-50 hover:bg-orange-100 border border-orange-200 transition-all flex items-center gap-1.5"
-                  id="nav-auth-modal-btn"
+                  onClick={onOpenSimulatorModal}
+                  className="px-3 py-2 rounded-xl text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 transition-all flex items-center gap-1.5 shadow-2xs"
+                  id="nav-simulator-hub-btn"
+                  title={`Visualiser l'espace ${currentRoleBadge.label}`}
                 >
-                  <UserPlus className="w-3.5 h-3.5" />
-                  <span>Inscription / Connexion</span>
+                  <Layers className="w-3.5 h-3.5 text-orange-600" />
+                  <span>Espace {currentRoleBadge.label}</span>
                 </button>
               )}
             </nav>
 
-            {/* Right Actions: Cart (if client), Role Switcher, Mobile Toggle */}
+            {/* Right Actions: Visitor Auth Buttons OR Connected User Menu */}
             <div className="flex items-center gap-2">
-              {/* Cart Drawer Trigger (Only shown for Client role) */}
-              {currentUser.role === 'client' && (
-                <button
-                  onClick={onOpenCart}
-                  className="relative p-2.5 rounded-xl bg-orange-50 hover:bg-orange-100/80 text-orange-700 border border-orange-200 transition-all focus:outline-hidden"
-                  id="cart-drawer-btn"
-                  aria-label="Voir le panier"
-                >
-                  <ShoppingCart className="w-5 h-5" />
-                  {cartCount > 0 && (
-                    <span className="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 px-1 rounded-full bg-orange-600 text-white text-[11px] font-extrabold flex items-center justify-center shadow-md animate-pulse">
-                      {cartCount}
-                    </span>
-                  )}
-                </button>
-              )}
-
-              {/* Role Simulation Switcher Dropdown with Categorized Sections */}
-              <div className="relative">
-                <button
-                  onClick={() => setShowRoleMenu(!showRoleMenu)}
-                  className={`flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-xl border text-xs font-bold transition-all ${currentRoleBadge.bg}`}
-                  id="user-role-switcher-btn"
-                >
-                  <RoleIcon className="w-4 h-4 shrink-0" />
-                  <div className="text-left hidden sm:block">
-                    <span className="block leading-none truncate max-w-[95px]">{currentUser.name.split(' ')[0]}</span>
-                    <span className="text-[9px] opacity-80 uppercase tracking-wider font-extrabold">
-                      {currentRoleBadge.label}
-                    </span>
-                  </div>
-                  <ChevronDown className="w-3.5 h-3.5 opacity-70" />
-                </button>
-
-                {showRoleMenu && (
-                  <div className="absolute right-0 mt-2 w-96 bg-white rounded-3xl shadow-2xl border border-slate-200 py-3 z-50 animate-in fade-in zoom-in-95 overflow-hidden">
-                    {/* Header */}
-                    <div className="px-4 pb-2.5 border-b border-slate-100 flex items-center justify-between">
-                      <div>
-                        <span className="text-[11px] font-black uppercase tracking-wider text-orange-600 flex items-center gap-1.5">
-                          <Layers className="w-3.5 h-3.5" /> Espace {currentRoleBadge.label}
-                        </span>
-                        <p className="text-[11px] text-slate-500 mt-0.5">
-                          Comptes rattachés à votre rôle ({currentRoleBadge.label}) :
-                        </p>
-                      </div>
+              {/* Case 1: Visitor (Not Connected) */}
+              {!currentUser && (
+                <div className="flex items-center gap-2">
+                  {onOpenAuthModal && (
+                    <>
                       <button
-                        onClick={() => {
-                          setShowRoleMenu(false);
-                          onOpenSimulatorModal();
-                        }}
-                        className="px-2.5 py-1 rounded-lg bg-orange-50 hover:bg-orange-100 text-orange-700 text-[10px] font-bold flex items-center gap-1 border border-orange-200 transition-colors"
+                        onClick={() => onOpenAuthModal('LOGIN')}
+                        className="px-3.5 py-2 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-100 border border-slate-200 transition-all flex items-center gap-1.5"
+                        id="nav-visitor-login-btn"
                       >
-                        <span>Détails</span>
-                        <ExternalLink className="w-3 h-3" />
+                        <LogIn className="w-3.5 h-3.5 text-slate-600" />
+                        <span>Se connecter</span>
                       </button>
-                    </div>
 
-                    {/* Distinct Section strictly for the Connected Actor Role */}
-                    <div className="p-2 space-y-3 max-h-[420px] overflow-y-auto">
-                      {roleGroups
-                        .filter((group) => group.role === currentUser.role)
-                        .map((group) => {
-                          const GroupIcon = group.icon;
-                          const usersInGroup = allUsers.filter((u) => u.role === group.role);
-
-                          return (
-                            <div
-                              key={group.role}
-                              className={`rounded-2xl border ${group.headerBg} overflow-hidden shadow-2xs transition-all`}
-                            >
-                              {/* Unique Section Header */}
-                              <div className="px-3 py-1.5 flex items-center justify-between border-b border-inherit">
-                                <div className="flex items-center gap-2">
-                                  <GroupIcon className={`w-3.5 h-3.5 ${group.colorClass}`} />
-                                  <span className="text-xs font-black text-slate-900">{group.title}</span>
-                                </div>
-                                <span className="px-2 py-0.2 rounded-full bg-emerald-600 text-white text-[9px] font-black">
-                                  Acteur Connecté
-                                </span>
-                              </div>
-
-                              {/* Users inside this dedicated actor section */}
-                              <div className="p-1.5 space-y-1 bg-white/90">
-                                {usersInGroup.map((u) => {
-                                  const isSelected = u.id === currentUser.id;
-
-                                  return (
-                                    <button
-                                      key={u.id}
-                                      onClick={() => handleRoleSelect(u)}
-                                      className={`w-full p-2 rounded-xl text-left flex items-center gap-2.5 transition-colors ${
-                                        isSelected
-                                          ? 'bg-slate-900 text-white shadow-xs'
-                                          : 'hover:bg-slate-100 text-slate-800'
-                                      }`}
-                                    >
-                                      <div
-                                        className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
-                                          isSelected ? 'bg-slate-800 text-white' : group.badgeClass
-                                        }`}
-                                      >
-                                        <GroupIcon className="w-3.5 h-3.5" />
-                                      </div>
-                                      <div className="flex-1 min-w-0">
-                                        <div className="text-xs font-bold truncate">{u.name}</div>
-                                        <div className="text-[10px] opacity-75 truncate">{u.email}</div>
-                                      </div>
-                                      {isSelected && <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />}
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          );
-                        })}
-                    </div>
-
-                    {/* Bottom CTA to open full detailed modal */}
-                    <div className="p-2 border-t border-slate-100 bg-slate-50 space-y-1.5">
-                      {onOpenAuthModal && (
+                      <div className="relative group">
                         <button
-                          onClick={() => {
-                            setShowRoleMenu(false);
-                            onOpenAuthModal();
-                          }}
-                          className="w-full py-2 px-3 rounded-xl bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold flex items-center justify-center gap-2 transition-colors"
+                          onClick={() => onOpenAuthModal('REGISTER', 'client')}
+                          className="px-4 py-2 rounded-xl text-xs font-black text-white bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-700 hover:to-amber-600 shadow-md shadow-orange-500/20 transition-all flex items-center gap-1.5"
+                          id="nav-visitor-register-btn"
                         >
                           <UserPlus className="w-3.5 h-3.5" />
-                          <span>Changer d'acteur / Inscrire un autre rôle</span>
+                          <span>Créer un compte</span>
                         </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* Case 2: Connected User */}
+              {currentUser && (
+                <>
+                  {/* Cart Drawer Trigger (Only shown for Client role) */}
+                  {currentUser.role === 'client' && onOpenCart && (
+                    <button
+                      onClick={onOpenCart}
+                      className="relative p-2.5 rounded-xl bg-orange-50 hover:bg-orange-100/80 text-orange-700 border border-orange-200 transition-all focus:outline-hidden"
+                      id="cart-drawer-btn"
+                      aria-label="Voir le panier"
+                    >
+                      <ShoppingCart className="w-5 h-5" />
+                      {cartCount > 0 && (
+                        <span className="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 px-1 rounded-full bg-orange-600 text-white text-[11px] font-extrabold flex items-center justify-center shadow-md animate-pulse">
+                          {cartCount}
+                        </span>
                       )}
-                    </div>
+                    </button>
+                  )}
+
+                  {/* Role & Account Dropdown */}
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowRoleMenu(!showRoleMenu)}
+                      className={`flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-xl border text-xs font-bold transition-all ${currentRoleBadge.bg}`}
+                      id="user-role-switcher-btn"
+                    >
+                      <RoleIcon className="w-4 h-4 shrink-0" />
+                      <div className="text-left hidden sm:block">
+                        <span className="block leading-none truncate max-w-[100px]">{currentUser.name.split(' ')[0]}</span>
+                        <span className="text-[9px] opacity-80 uppercase tracking-wider font-extrabold">
+                          {currentRoleBadge.label}
+                        </span>
+                      </div>
+                      <ChevronDown className="w-3.5 h-3.5 opacity-70" />
+                    </button>
+
+                    {showRoleMenu && (
+                      <div className="absolute right-0 mt-2 w-96 bg-white rounded-3xl shadow-2xl border border-slate-200 py-3 z-50 animate-in fade-in zoom-in-95 overflow-hidden">
+                        {/* Header */}
+                        <div className="px-4 pb-2.5 border-b border-slate-100 flex items-center justify-between">
+                          <div>
+                            <span className="text-[11px] font-black uppercase tracking-wider text-orange-600 flex items-center gap-1.5">
+                              <Layers className="w-3.5 h-3.5" /> Espace {currentRoleBadge.label}
+                            </span>
+                            <p className="text-[11px] text-slate-500 mt-0.5">
+                              Comptes rattachés à votre rôle ({currentRoleBadge.label}) :
+                            </p>
+                          </div>
+                          {onOpenSimulatorModal && (
+                            <button
+                              onClick={() => {
+                                setShowRoleMenu(false);
+                                onOpenSimulatorModal();
+                              }}
+                              className="px-2.5 py-1 rounded-lg bg-orange-50 hover:bg-orange-100 text-orange-700 text-[10px] font-bold flex items-center gap-1 border border-orange-200 transition-colors"
+                            >
+                              <span>Détails</span>
+                              <ExternalLink className="w-3 h-3" />
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Distinct Section strictly for the Connected Actor Role */}
+                        <div className="p-2 space-y-3 max-h-[380px] overflow-y-auto">
+                          {roleGroups
+                            .filter((group) => group.role === currentUser.role)
+                            .map((group) => {
+                              const GroupIcon = group.icon;
+                              const usersInGroup = allUsers.filter((u) => u.role === group.role);
+
+                              return (
+                                <div
+                                  key={group.role}
+                                  className={`rounded-2xl border ${group.headerBg} overflow-hidden shadow-2xs transition-all`}
+                                >
+                                  {/* Unique Section Header */}
+                                  <div className="px-3 py-1.5 flex items-center justify-between border-b border-inherit">
+                                    <div className="flex items-center gap-2">
+                                      <GroupIcon className={`w-3.5 h-3.5 ${group.colorClass}`} />
+                                      <span className="text-xs font-black text-slate-900">{group.title}</span>
+                                    </div>
+                                    <span className="px-2 py-0.2 rounded-full bg-emerald-600 text-white text-[9px] font-black">
+                                      Acteur Connecté
+                                    </span>
+                                  </div>
+
+                                  {/* Users inside this dedicated actor section */}
+                                  <div className="p-1.5 space-y-1 bg-white/90">
+                                    {usersInGroup.map((u) => {
+                                      const isSelected = u.id === currentUser.id;
+
+                                      return (
+                                        <button
+                                          key={u.id}
+                                          onClick={() => handleRoleSelect(u)}
+                                          className={`w-full p-2 rounded-xl text-left flex items-center gap-2.5 transition-colors ${
+                                            isSelected
+                                              ? 'bg-slate-900 text-white shadow-xs'
+                                              : 'hover:bg-slate-100 text-slate-800'
+                                          }`}
+                                        >
+                                          <div
+                                            className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
+                                              isSelected ? 'bg-slate-800 text-white' : group.badgeClass
+                                            }`}
+                                          >
+                                            <GroupIcon className="w-3.5 h-3.5" />
+                                          </div>
+                                          <div className="flex-1 min-w-0">
+                                            <div className="text-xs font-bold truncate">{u.name}</div>
+                                            <div className="text-[10px] opacity-75 truncate">{u.email}</div>
+                                          </div>
+                                          {isSelected && <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                        </div>
+
+                        {/* Bottom CTAs: Switch / Register and Logout */}
+                        <div className="p-2 border-t border-slate-100 bg-slate-50 space-y-1.5">
+                          {onOpenAuthModal && (
+                            <button
+                              onClick={() => {
+                                setShowRoleMenu(false);
+                                onOpenAuthModal('REGISTER');
+                              }}
+                              className="w-full py-2 px-3 rounded-xl bg-orange-50 hover:bg-orange-100 text-orange-800 text-xs font-bold flex items-center justify-center gap-2 transition-colors border border-orange-200"
+                            >
+                              <UserPlus className="w-3.5 h-3.5" />
+                              <span>Changer d'acteur / Inscrire un autre rôle</span>
+                            </button>
+                          )}
+
+                          {onLogout && (
+                            <button
+                              onClick={() => {
+                                setShowRoleMenu(false);
+                                onLogout();
+                              }}
+                              className="w-full py-2 px-3 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 text-xs font-bold flex items-center justify-center gap-2 transition-colors border border-red-200"
+                            >
+                              <LogOut className="w-3.5 h-3.5" />
+                              <span>Se déconnecter (Retour Visiteur)</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
+                </>
+              )}
 
               {/* Mobile Menu Toggle Button */}
               <button
@@ -536,11 +607,48 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* Mobile Dropdown Menu */}
         {mobileMenuOpen && (
           <div className="lg:hidden border-t border-slate-200 bg-white px-4 py-3 space-y-2.5 shadow-lg animate-in slide-in-from-top duration-200">
-            {currentUser.role === 'client' && (
+            {/* Visitor on mobile */}
+            {!currentUser && (
+              <div className="space-y-2">
+                <button
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    if (onOpenAuthModal) onOpenAuthModal('LOGIN');
+                  }}
+                  className="w-full py-2.5 px-4 rounded-xl bg-slate-100 text-slate-800 font-bold text-xs flex items-center justify-center gap-2"
+                >
+                  <LogIn className="w-4 h-4" />
+                  <span>Se connecter</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    if (onOpenAuthModal) onOpenAuthModal('REGISTER', 'client');
+                  }}
+                  className="w-full py-2.5 px-4 rounded-xl bg-orange-600 text-white font-bold text-xs flex items-center justify-center gap-2"
+                >
+                  <UserPlus className="w-4 h-4" />
+                  <span>Créer un compte Client</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    if (onOpenAuthModal) onOpenAuthModal('REGISTER', 'vendor');
+                  }}
+                  className="w-full py-2.5 px-4 rounded-xl bg-blue-600 text-white font-bold text-xs flex items-center justify-center gap-2"
+                >
+                  <Store className="w-4 h-4" />
+                  <span>Créer un compte Distributeur</span>
+                </button>
+              </div>
+            )}
+
+            {/* Client on mobile */}
+            {currentUser?.role === 'client' && (
               <div className="grid grid-cols-2 gap-2 pb-2 border-b border-slate-100">
                 <button
                   onClick={() => {
-                    onNavigate('map');
+                    if (onNavigate) onNavigate('map');
                     setMobileMenuOpen(false);
                   }}
                   className={`p-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 ${
@@ -548,194 +656,56 @@ export const Navbar: React.FC<NavbarProps> = ({
                   }`}
                 >
                   <Search className="w-4 h-4" />
-                  <span>Carte & Dépôts</span>
+                  <span>Bouteilles</span>
                 </button>
 
                 <button
                   onClick={() => {
-                    onNavigate('client_dashboard');
+                    if (onNavigate) onNavigate('client_dashboard');
                     setMobileMenuOpen(false);
                   }}
                   className={`p-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 ${
-                    activeView === 'client_dashboard' ? 'bg-orange-600 text-white' : 'bg-slate-100 text-slate-700'
+                    activeView === 'client_dashboard' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700'
                   }`}
                 >
                   <Package className="w-4 h-4" />
-                  <span>Mes Commandes</span>
+                  <span>Commandes</span>
                 </button>
               </div>
             )}
 
-            {currentUser.role !== 'client' && (
-              <button
-                onClick={() => {
-                  if (currentUser.role === 'vendor') onNavigate('vendor_dashboard');
-                  else if (currentUser.role === 'driver') onNavigate('driver_dashboard');
-                  else if (currentUser.role === 'admin') onNavigate('admin_dashboard');
-                  else if (currentUser.role === 'brand') onNavigate('brand_dashboard');
-                  setMobileMenuOpen(false);
-                }}
-                className={`w-full p-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 ${currentRoleBadge.accent} text-white`}
-              >
-                <RoleIcon className="w-4 h-4" />
-                <span>Mon Espace {currentRoleBadge.label}</span>
-              </button>
+            {/* Connected actions */}
+            {currentUser && (
+              <div className="pt-2 border-t border-slate-100 space-y-2">
+                {onOpenSimulatorModal && (
+                  <button
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      onOpenSimulatorModal();
+                    }}
+                    className="w-full py-2 px-3 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold flex items-center justify-center gap-2"
+                  >
+                    <Layers className="w-4 h-4 text-orange-600" />
+                    <span>Espace {currentRoleBadge.label}</span>
+                  </button>
+                )}
+                {onLogout && (
+                  <button
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      onLogout();
+                    }}
+                    className="w-full py-2 px-3 rounded-xl bg-red-50 text-red-700 text-xs font-bold flex items-center justify-center gap-2"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span>Déconnexion</span>
+                  </button>
+                )}
+              </div>
             )}
-
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                onClick={() => {
-                  onOpenSimulatorModal();
-                  setMobileMenuOpen(false);
-                }}
-                className="p-2.5 rounded-xl bg-orange-50 text-orange-800 font-bold text-xs flex items-center justify-center gap-2 border border-orange-200"
-              >
-                <Layers className="w-4 h-4 text-orange-600" />
-                <span>Simulateur</span>
-              </button>
-
-              {onOpenAuthModal && (
-                <button
-                  onClick={() => {
-                    onOpenAuthModal();
-                    setMobileMenuOpen(false);
-                  }}
-                  className="p-2.5 rounded-xl bg-slate-900 text-white font-bold text-xs flex items-center justify-center gap-2"
-                >
-                  <UserPlus className="w-4 h-4" />
-                  <span>Inscription</span>
-                </button>
-              )}
-            </div>
           </div>
         )}
       </header>
-
-      {/* Mobile Bottom Navigation Bar (Actor Dedicated Layout) */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-md border-t border-slate-200 px-3 py-1.5 flex items-center justify-around shadow-lg">
-        {currentUser.role === 'client' && (
-          <>
-            <button
-              onClick={() => onNavigate('map')}
-              className={`flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all ${
-                activeView === 'map' ? 'text-orange-600 font-bold' : 'text-slate-500 font-medium'
-              }`}
-            >
-              <Search className="w-5 h-5" />
-              <span className="text-[10px] mt-0.5">Explorer</span>
-            </button>
-
-            <button
-              onClick={() => onNavigate('client_dashboard')}
-              className={`flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all ${
-                activeView === 'client_dashboard' ? 'text-orange-600 font-bold' : 'text-slate-500 font-medium'
-              }`}
-            >
-              <Package className="w-5 h-5" />
-              <span className="text-[10px] mt-0.5">Commandes</span>
-            </button>
-
-            <button
-              onClick={onOpenCart}
-              className="relative flex flex-col items-center justify-center py-1 px-3 rounded-xl text-slate-500 font-medium"
-            >
-              <div className="relative">
-                <ShoppingCart className="w-5 h-5 text-slate-700" />
-                {cartCount > 0 && (
-                  <span className="absolute -top-1.5 -right-2 w-4 h-4 rounded-full bg-orange-600 text-white text-[9px] font-black flex items-center justify-center shadow-xs">
-                    {cartCount}
-                  </span>
-                )}
-              </div>
-              <span className="text-[10px] mt-0.5">Panier</span>
-            </button>
-
-            <button
-              onClick={onOpenSimulatorModal}
-              className="flex flex-col items-center justify-center py-1 px-3 rounded-xl text-slate-500 font-medium"
-            >
-              <Layers className="w-5 h-5" />
-              <span className="text-[10px] mt-0.5">Espace</span>
-            </button>
-          </>
-        )}
-
-        {currentUser.role === 'vendor' && (
-          <>
-            <button
-              onClick={() => onNavigate('vendor_dashboard')}
-              className="flex flex-col items-center justify-center py-1 px-3 rounded-xl text-blue-600 font-bold"
-            >
-              <Store className="w-5 h-5" />
-              <span className="text-[10px] mt-0.5">Mon Dépôt</span>
-            </button>
-            <button
-              onClick={onOpenSimulatorModal}
-              className="flex flex-col items-center justify-center py-1 px-3 rounded-xl text-slate-500 font-medium"
-            >
-              <Layers className="w-5 h-5" />
-              <span className="text-[10px] mt-0.5">Espace</span>
-            </button>
-          </>
-        )}
-
-        {currentUser.role === 'driver' && (
-          <>
-            <button
-              onClick={() => onNavigate('driver_dashboard')}
-              className="flex flex-col items-center justify-center py-1 px-3 rounded-xl text-emerald-600 font-bold"
-            >
-              <Bike className="w-5 h-5" />
-              <span className="text-[10px] mt-0.5">Missions</span>
-            </button>
-            <button
-              onClick={onOpenSimulatorModal}
-              className="flex flex-col items-center justify-center py-1 px-3 rounded-xl text-slate-500 font-medium"
-            >
-              <Layers className="w-5 h-5" />
-              <span className="text-[10px] mt-0.5">Espace</span>
-            </button>
-          </>
-        )}
-
-        {currentUser.role === 'brand' && (
-          <>
-            <button
-              onClick={() => onNavigate('brand_dashboard')}
-              className="flex flex-col items-center justify-center py-1 px-3 rounded-xl text-amber-600 font-bold"
-            >
-              <Building2 className="w-5 h-5" />
-              <span className="text-[10px] mt-0.5">Réseau Marque</span>
-            </button>
-            <button
-              onClick={onOpenSimulatorModal}
-              className="flex flex-col items-center justify-center py-1 px-3 rounded-xl text-slate-500 font-medium"
-            >
-              <Layers className="w-5 h-5" />
-              <span className="text-[10px] mt-0.5">Espace</span>
-            </button>
-          </>
-        )}
-
-        {currentUser.role === 'admin' && (
-          <>
-            <button
-              onClick={() => onNavigate('admin_dashboard')}
-              className="flex flex-col items-center justify-center py-1 px-3 rounded-xl text-purple-600 font-bold"
-            >
-              <Shield className="w-5 h-5" />
-              <span className="text-[10px] mt-0.5">Super Admin</span>
-            </button>
-            <button
-              onClick={onOpenSimulatorModal}
-              className="flex flex-col items-center justify-center py-1 px-3 rounded-xl text-slate-500 font-medium"
-            >
-              <Layers className="w-5 h-5" />
-              <span className="text-[10px] mt-0.5">Espace</span>
-            </button>
-          </>
-        )}
-      </nav>
     </>
   );
 };

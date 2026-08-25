@@ -25,8 +25,10 @@ import { INITIAL_PRODUCTS } from '../../data/initialData';
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
-  currentUser: User;
+  currentUser: User | null;
   onUserAuthenticated: (user: User, isNewRegistration?: boolean) => void;
+  initialMode?: 'LOGIN' | 'REGISTER' | 'PRESETS';
+  initialRole?: UserRole;
 }
 
 export const AuthModal: React.FC<AuthModalProps> = ({
@@ -34,9 +36,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   onClose,
   currentUser,
   onUserAuthenticated,
+  initialMode = 'REGISTER',
+  initialRole = 'client',
 }) => {
-  const [mode, setMode] = useState<'LOGIN' | 'REGISTER' | 'PRESETS'>('REGISTER');
-  const [role, setRole] = useState<UserRole>('client');
+  const [mode, setMode] = useState<'LOGIN' | 'REGISTER' | 'PRESETS'>(initialMode);
+  const [role, setRole] = useState<UserRole>(initialRole);
+
+  // Sync mode and role when initial props change or modal re-opens
+  React.useEffect(() => {
+    if (isOpen) {
+      if (initialMode) setMode(initialMode);
+      if (initialRole) setRole(initialRole);
+      setError(null);
+    }
+  }, [isOpen, initialMode, initialRole]);
 
   // Common Form states
   const [phoneOrEmail, setPhoneOrEmail] = useState('');

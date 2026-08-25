@@ -104,16 +104,25 @@ export class AppStorage {
     localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
   }
 
-  static getCurrentUser(): User {
+  static getCurrentUser(): User | null {
+    const currentId = localStorage.getItem(STORAGE_KEYS.CURRENT_USER_ID);
+    if (!currentId) return null;
     const users = this.getUsers();
-    const currentId = localStorage.getItem(STORAGE_KEYS.CURRENT_USER_ID) || 'user-client-1';
     const found = users.find((u) => u.id === currentId);
-    return found || users[0];
+    return found || null;
   }
 
-  static setCurrentUser(userOrId: string | User): void {
+  static setCurrentUser(userOrId: string | User | null): void {
+    if (!userOrId) {
+      localStorage.removeItem(STORAGE_KEYS.CURRENT_USER_ID);
+      return;
+    }
     const id = typeof userOrId === 'string' ? userOrId : userOrId.id;
     localStorage.setItem(STORAGE_KEYS.CURRENT_USER_ID, id);
+  }
+
+  static logout(): void {
+    localStorage.removeItem(STORAGE_KEYS.CURRENT_USER_ID);
   }
 
   static getOrders(): Order[] {
