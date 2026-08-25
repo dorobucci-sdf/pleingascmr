@@ -81,7 +81,20 @@ export class AppStorage {
       return INITIAL_USERS;
     }
     try {
-      return JSON.parse(data);
+      const parsed: User[] = JSON.parse(data);
+      // If new initial users were added, merge them
+      if (parsed.length < INITIAL_USERS.length) {
+        const existingIds = new Set(parsed.map((u) => u.id));
+        const merged = [...parsed];
+        INITIAL_USERS.forEach((u) => {
+          if (!existingIds.has(u.id)) {
+            merged.push(u);
+          }
+        });
+        this.saveUsers(merged);
+        return merged;
+      }
+      return parsed;
     } catch {
       return INITIAL_USERS;
     }

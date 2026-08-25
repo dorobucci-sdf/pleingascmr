@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Navbar } from './components/Navbar';
 import { GasSearchMap } from './components/client/GasSearchMap';
 import { SalesPointModal } from './components/client/SalesPointModal';
@@ -11,7 +11,7 @@ import { DriverDashboard } from './components/driver/DriverDashboard';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { BrandDashboard } from './components/brand/BrandDashboard';
 import { AuthModal } from './components/auth/AuthModal';
-import { ArchitectureDocsModal } from './components/docs/ArchitectureDocsModal';
+import { ActorSimulatorModal } from './components/simulator/ActorSimulatorModal';
 import { AppStorage } from './services/storage';
 import {
   User,
@@ -23,7 +23,7 @@ import {
   SystemLog,
   Coordinates,
 } from './types';
-import { Check } from 'lucide-react';
+import { Check, Sparkles, Layers, ArrowRight, UserPlus, Info } from 'lucide-react';
 
 export default function App() {
   // Main Data States
@@ -43,8 +43,23 @@ export default function App() {
   });
   const [isGpsActive, setIsGpsActive] = useState<boolean>(false);
 
-  // View state
-  const [activeView, setActiveView] = useState<string>('map');
+  // View state (defaults depending on user role)
+  const getInitialViewForRole = (role: string) => {
+    switch (role) {
+      case 'vendor':
+        return 'vendor_dashboard';
+      case 'driver':
+        return 'driver_dashboard';
+      case 'brand':
+        return 'brand_dashboard';
+      case 'admin':
+        return 'admin_dashboard';
+      default:
+        return 'map';
+    }
+  };
+
+  const [activeView, setActiveView] = useState<string>(getInitialViewForRole(currentUser.role));
 
   // Modal States
   const [selectedSalesPoint, setSelectedSalesPoint] = useState<SalesPoint | null>(null);
@@ -53,7 +68,10 @@ export default function App() {
   const [checkoutOptions, setCheckoutOptions] = useState<any>(null);
   const [trackedOrder, setTrackedOrder] = useState<Order | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [isDocsModalOpen, setIsDocsModalOpen] = useState(false);
+  const [isSimulatorModalOpen, setIsSimulatorModalOpen] = useState(false);
+
+  // Welcome notice banner for actors
+  const [showRoleWelcomeBanner, setShowRoleWelcomeBanner] = useState<boolean>(true);
 
   // Toast State
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -74,6 +92,51 @@ export default function App() {
     setTimeout(() => {
       setToastMessage(null);
     }, 3500);
+  };
+
+  // Sync view whenever currentUser changes
+  const handleUserChange = (newUser: User, isNewRegistration = false) => {
+    AppStorage.setCurrentUser(newUser);
+    setCurrentUser(newUser);
+    refreshData();
+    setShowRoleWelcomeBanner(true);
+
+    if (newUser.role === 'client') {
+      setActiveView('map');
+    } else if (newUser.role === 'vendor') {
+      setActiveView('vendor_dashboard');
+    } else if (newUser.role === 'driver') {
+      setActiveView('driver_dashboard');
+    } else if (newUser.role === 'admin') {
+      setActiveView('admin_dashboard');
+    } else if (newUser.role === 'brand') {
+      setActiveView('brand_dashboard');
+    }
+
+    if (isNewRegistration) {
+      showToast(`🎉 Bienvenue ${newUser.name} ! Votre espace ${newUser.role.toUpperCase()} est ouvert.`);
+    } else {
+      showToast(`✓ Espace actif : ${newUser.name} (${newUser.role.toUpperCase()})`);
+    }
+  };
+
+  // Safe navigation handler that prevents actors from accessing other roles' dashboards
+  const handleNavigate = (view: string) => {
+    if (currentUser.role === 'client') {
+      if (view === 'map' || view === 'client_dashboard') {
+        setActiveView(view);
+      } else {
+        setActiveView('map');
+      }
+    } else if (currentUser.role === 'vendor') {
+      setActiveView('vendor_dashboard');
+    } else if (currentUser.role === 'driver') {
+      setActiveView('driver_dashboard');
+    } else if (currentUser.role === 'admin') {
+      setActiveView('admin_dashboard');
+    } else if (currentUser.role === 'brand') {
+      setActiveView('brand_dashboard');
+    }
   };
 
   // GPS Request Handler
@@ -101,23 +164,6 @@ export default function App() {
     setUserLocation(city.coordinates);
     setIsGpsActive(false);
     showToast(`📍 Zone définie sur : ${city.name}`);
-  };
-
-  // Sync active view based on user role when user changes
-  const handleUserChange = (newUser: User) => {
-    AppStorage.setCurrentUser(newUser);
-    setCurrentUser(newUser);
-    if (newUser.role === 'client') {
-      setActiveView('map');
-    } else if (newUser.role === 'vendor') {
-      setActiveView('vendor_dashboard');
-    } else if (newUser.role === 'driver') {
-      setActiveView('driver_dashboard');
-    } else if (newUser.role === 'admin') {
-      setActiveView('admin_dashboard');
-    } else if (newUser.role === 'brand') {
-      setActiveView('brand_dashboard');
-    }
   };
 
   // Cart operations
@@ -202,7 +248,7 @@ export default function App() {
   const cartSalesPoint = salesPoints.find((sp) => sp.id === cart.salesPointId) || null;
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans antialiased selection:bg-orange-500 selection:text-white">
+    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans antialiased selection:bg-orange-500 selection:text-white pb-16 lg:pb-0">
       {/* Toast Notification Banner */}
       {toastMessage && (
         <div className="fixed top-20 right-4 z-50 bg-slate-900 text-white px-4 py-3 rounded-2xl shadow-xl flex items-center gap-2.5 text-xs font-extrabold border border-slate-800 animate-in slide-in-from-top-4 duration-200">
@@ -217,23 +263,69 @@ export default function App() {
       <Navbar
         currentUser={currentUser}
         allUsers={users}
-        onSelectUser={handleUserChange}
+        onSelectUser={(u) => handleUserChange(u, false)}
         cartCount={cart.items.reduce((s, i) => s + i.quantity, 0)}
         onOpenCart={() => setIsCartOpen(true)}
         activeView={activeView}
-        onNavigate={(view) => setActiveView(view)}
+        onNavigate={handleNavigate}
         onOpenAuthModal={() => setIsAuthModalOpen(true)}
-        onOpenDocsModal={() => setIsDocsModalOpen(true)}
+        onOpenSimulatorModal={() => setIsSimulatorModalOpen(true)}
         userLocation={userLocation}
         onSelectCity={handleSelectCity}
         onRequestGPS={handleRequestGPS}
         isGpsActive={isGpsActive}
       />
 
-      {/* Main Content Area */}
+      {/* Dynamic Actor Context Bar / Active Role Ribbon */}
+      {showRoleWelcomeBanner && (
+        <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white px-4 py-2 border-b border-slate-700/50 shadow-xs">
+          <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs">
+            <div className="flex items-center gap-2.5">
+              <span className="flex h-2 w-2 relative">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+
+              <span className="font-extrabold text-orange-400 uppercase tracking-wider text-[10px]">
+                {currentUser.role === 'client' && 'Espace Consommateur / Client Actif'}
+                {currentUser.role === 'vendor' && 'Espace Point de Vente / Dépôt Actif'}
+                {currentUser.role === 'driver' && 'Espace Livreur / Transporteur Actif'}
+                {currentUser.role === 'brand' && 'Espace Fournisseur Marque Actif'}
+                {currentUser.role === 'admin' && 'Espace Super Administrateur Actif'}
+              </span>
+
+              <span className="text-slate-400 hidden sm:inline">•</span>
+
+              <span className="text-slate-300 font-medium truncate">
+                Connecté : <strong>{currentUser.name}</strong>
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2 self-end sm:self-auto">
+              <button
+                onClick={() => setIsSimulatorModalOpen(true)}
+                className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-bold flex items-center gap-1 border border-slate-700 transition-colors"
+              >
+                <Layers className="w-3 h-3 text-orange-400" />
+                <span>Profils Acteur</span>
+              </button>
+
+              <button
+                onClick={() => setIsAuthModalOpen(true)}
+                className="px-2.5 py-1 rounded-lg bg-orange-600/30 hover:bg-orange-600/50 text-orange-200 text-[11px] font-bold flex items-center gap-1 border border-orange-500/30 transition-colors"
+              >
+                <UserPlus className="w-3 h-3 text-orange-400" />
+                <span>Changer d'Acteur</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Main Content Area: Strictly shows only the current actor's interface */}
       <main className="flex-1">
-        {/* VIEW: Gas Map & Search (Client Home) */}
-        {activeView === 'map' && (
+        {/* 1. ACTOR CLIENT: Gas Search Map & Catalog */}
+        {currentUser.role === 'client' && activeView === 'map' && (
           <GasSearchMap
             salesPoints={salesPoints}
             brands={brands}
@@ -246,8 +338,8 @@ export default function App() {
           />
         )}
 
-        {/* VIEW: Client Orders Dashboard */}
-        {activeView === 'client_dashboard' && (
+        {/* 1b. ACTOR CLIENT: Orders & Tracking Dashboard */}
+        {currentUser.role === 'client' && activeView === 'client_dashboard' && (
           <ClientDashboard
             currentUser={currentUser}
             orders={orders}
@@ -256,8 +348,8 @@ export default function App() {
           />
         )}
 
-        {/* VIEW: Vendor / Point of Sale Dashboard */}
-        {activeView === 'vendor_dashboard' && (
+        {/* 2. ACTOR VENDOR: Point of Sale, Stocks & Incoming Orders Dashboard */}
+        {currentUser.role === 'vendor' && (
           <VendorDashboard
             currentUser={currentUser}
             salesPoints={salesPoints}
@@ -267,8 +359,8 @@ export default function App() {
           />
         )}
 
-        {/* VIEW: Driver Delivery Dashboard */}
-        {activeView === 'driver_dashboard' && (
+        {/* 3. ACTOR DRIVER: Available Deliveries, Active Route & OTP Verification */}
+        {currentUser.role === 'driver' && (
           <DriverDashboard
             currentUser={currentUser}
             orders={orders}
@@ -276,8 +368,8 @@ export default function App() {
           />
         )}
 
-        {/* VIEW: Super Administrator Governance Dashboard */}
-        {activeView === 'admin_dashboard' && (
+        {/* 4. ACTOR SUPER ADMIN: Governance, Depots Certification & Price Regulation */}
+        {currentUser.role === 'admin' && (
           <AdminDashboard
             currentUser={currentUser}
             salesPoints={salesPoints}
@@ -290,8 +382,8 @@ export default function App() {
           />
         )}
 
-        {/* VIEW: Brand Partner Distribution Dashboard */}
-        {activeView === 'brand_dashboard' && (
+        {/* 5. ACTOR BRAND: Gas Volumes Supervision & Partner Depots Map */}
+        {currentUser.role === 'brand' && (
           <BrandDashboard
             currentUser={currentUser}
             brands={brands}
@@ -323,7 +415,6 @@ export default function App() {
         onClose={() => setIsCartOpen(false)}
         cart={cart}
         salesPoint={cartSalesPoint}
-        userLocation={userLocation}
         onUpdateQuantity={handleUpdateCartQuantity}
         onClearCart={handleClearCart}
         onProceedToCheckout={(options) => {
@@ -364,17 +455,25 @@ export default function App() {
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
         currentUser={currentUser}
-        onUserAuthenticated={(authenticatedUser) => {
-          handleUserChange(authenticatedUser);
+        onUserAuthenticated={(authenticatedUser, isNewRegistration) => {
+          handleUserChange(authenticatedUser, isNewRegistration);
           setIsAuthModalOpen(false);
-          showToast(`Connecté avec succès : ${authenticatedUser.name}`);
         }}
       />
 
-      {/* 6. Architecture & Django Specifications Dossier Modal */}
-      <ArchitectureDocsModal
-        isOpen={isDocsModalOpen}
-        onClose={() => setIsDocsModalOpen(false)}
+      {/* 6. Actor Simulator Hub Modal with dedicated sections */}
+      <ActorSimulatorModal
+        isOpen={isSimulatorModalOpen}
+        onClose={() => setIsSimulatorModalOpen(false)}
+        currentUser={currentUser}
+        allUsers={users}
+        salesPoints={salesPoints}
+        brands={brands}
+        onSelectUser={(u) => handleUserChange(u, false)}
+        onOpenAuthModal={() => {
+          setIsSimulatorModalOpen(false);
+          setIsAuthModalOpen(true);
+        }}
       />
     </div>
   );

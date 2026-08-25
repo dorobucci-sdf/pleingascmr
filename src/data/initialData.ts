@@ -453,6 +453,7 @@ export const INITIAL_SALES_POINTS: SalesPoint[] = [
 ];
 
 export const INITIAL_USERS: User[] = [
+  // 1. Clients & Consommateurs
   {
     id: 'user-client-1',
     name: 'Ulrich Marc DOHO',
@@ -462,34 +463,73 @@ export const INITIAL_USERS: User[] = [
     defaultAddress: 'Akwa, Rue Sylvani, Immeuble Horizon 3e étage',
   },
   {
+    id: 'user-client-2',
+    name: 'Sarah Ngo (Ménage & Traiteur)',
+    email: 'sarah.ngo@bonapriso.cm',
+    phone: '+237 675 99 88 77',
+    role: 'client',
+    defaultAddress: 'Bonapriso, Rue des Palmiers, Résidence Belle-Vue',
+  },
+
+  // 2. Gérants de Points de Vente & Dépôts
+  {
     id: 'user-vendor-1',
-    name: 'Pauline Mbarga (Gérante Tradex)',
+    name: 'Pauline Mbarga (Station Tradex Akwa Nord)',
     email: 'p.mbarga@tradex-station.cm',
     phone: '+237 677 12 34 56',
     role: 'vendor',
     salesPointId: 'sp-1',
   },
   {
+    id: 'user-vendor-2',
+    name: 'Samuel Ewane (Dépôt Gaz Bonanjo & Centre)',
+    email: 'contact@depotgaz-bonanjo.cm',
+    phone: '+237 699 88 77 66',
+    role: 'vendor',
+    salesPointId: 'sp-2',
+  },
+
+  // 3. Livreurs & Transporteurs Géolocalisés
+  {
     id: 'user-driver-1',
-    name: 'Jean-Pierre Kamga (Livreur Pro)',
+    name: 'Jean-Pierre Kamga (Moto Express - Akwa/Deido)',
     email: 'jp.kamga@expresslivraison.cm',
     phone: '+237 651 88 99 00',
     role: 'driver',
   },
   {
-    id: 'user-admin-1',
-    name: 'Directeur Général pleinGas',
-    email: 'admin@pleingas.com',
-    phone: '+237 233 40 00 00',
-    role: 'admin',
+    id: 'user-driver-2',
+    name: 'Eric Ndoumbe (Tricycle Lourd - Bonanjo/Bonapriso)',
+    email: 'eric.ndoumbe@gaz-rapide.cm',
+    phone: '+237 698 33 22 11',
+    role: 'driver',
   },
+
+  // 4. Fournisseurs & Marques de Gaz
   {
     id: 'user-brand-1',
-    name: 'Représentant Tradex S.A.',
+    name: 'Direction Commerciale Tradex S.A.',
     email: 'direction.marques@tradexcm.com',
     phone: '+237 233 42 00 00',
     role: 'brand',
     brandId: 'brand-1',
+  },
+  {
+    id: 'user-brand-2',
+    name: 'Superviseur Réseau TotalEnergies Gaz',
+    email: 'reseau.gaz@totalenergies.cm',
+    phone: '+237 233 43 55 66',
+    role: 'brand',
+    brandId: 'brand-2',
+  },
+
+  // 5. Super Administrateur & Régulation
+  {
+    id: 'user-admin-1',
+    name: 'Directeur Général & Super Admin pleinGas',
+    email: 'admin@pleingas.com',
+    phone: '+237 233 40 00 00',
+    role: 'admin',
   },
 ];
 
