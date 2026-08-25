@@ -1,0 +1,6 @@
+{
+  "name": "GazExpress - Distribution de Gaz Géolocalisée",
+  "description": "Plateforme complète de gestion, géolocalisation, commande et livraison de bouteilles de gaz pour clients, points de vente, livreurs et administrateurs.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
